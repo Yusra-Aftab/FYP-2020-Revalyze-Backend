@@ -1,9 +1,12 @@
 
 
+from accounts import views
 from django.urls import include, path, re_path
 from django.views.generic import TemplateView
 
 urlpatterns = [
+
+    path('upload_video/', views.upload_video, name='upload_video'),
     path('auth/', include('djoser.urls')),
     path('auth/', include('djoser.urls.jwt')),
 ]

@@ -4,6 +4,8 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 
 # Create your models here.
 
+
+
 class UserAccountManager(BaseUserManager):
 
     def create_user(self, email, name, password=None):
@@ -40,3 +42,6 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     
     def __str__(self):
         return self.email
+    
+
+
