@@ -75,7 +75,11 @@ def process (video_path):
         audio.write_audiofile(temp_audio_file_path)
 
     Full_text = get_large_audio_transcription_on_silence(temp_audio_file_path)
-    print(Full_text)
+
+    return Full_text
+    
+
+
     
 
 # process("backend/media/speech.mp4")

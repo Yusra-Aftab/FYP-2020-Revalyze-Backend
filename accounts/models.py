@@ -44,4 +44,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
         return self.email
     
 
+class Video(models.Model):
+    name = models.CharField(max_length=255)
+    transcript = models.TextField()
 
