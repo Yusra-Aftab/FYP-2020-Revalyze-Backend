@@ -1,85 +1,72 @@
-# importing libraries 
-import speech_recognition as sr 
-import os 
-import tempfile
-from moviepy.editor import VideoFileClip
-from pydub import AudioSegment
-from pydub.silence import split_on_silence
+import whisper
+import torch
+import os
+import time
 
 
+def print_size_of_model(model):
+    torch.save(model.state_dict(), "temp.p")
+    size = os.path.getsize("temp.p")/1e6
+    # print('Size (MB):', size)
+    os.remove('temp.p')
+    return size
 
-def extract_audio(video_path):
-    video = VideoFileClip(video_path)
-    audio = video.audio
-    return audio
+def time_model_evaluation(model, mel, options,test_path, D_language ):
+    eval_start_time = time.time()
+    # result = whisper.decode(model, mel, options)
+    result = whisper.transcribe(model, test_path,  language=D_language,)# , options)
+    eval_end_time = time.time()
+    eval_duration_time = eval_end_time - eval_start_time
+    output = result["text"]
+    print("Evaluate total time (seconds): {0:.1f}".format(eval_duration_time))
+    return output
 
-# create a speech recognition object
-r = sr.Recognizer()
 
-# a function to recognize speech in the audio file
-# so that we don't repeat ourselves in in other functions
-def transcribe_audio(path):
-    # use the audio file as the audio source
-    with sr.AudioFile(path) as source:
-        audio_listened = r.record(source)
-        # try converting it to text
-        text = r.recognize_google(audio_listened)
-    return text
+def process (audio_path):  
+    
 
-# a function that splits the audio file into chunks on silence
-# and applies speech recognition
-def get_large_audio_transcription_on_silence(path):
-    """Splitting the large audio file into chunks
-    and apply speech recognition on each of these chunks"""
-    # open the audio file using pydub
-    sound = AudioSegment.from_file(path)  
-    # split audio sound where silence is 500 miliseconds or more and get chunks
-    chunks = split_on_silence(sound,
-        # experiment with this value for your target audio file
-        min_silence_len = 500,
-        # adjust this per requirement
-        silence_thresh = sound.dBFS-14,
-        # keep the silence for 1 second, adjustable as well
-        keep_silence=500,
+    model_fp32 = whisper.load_model(
+        name="base",
+        device="cpu")
+
+    quantized_model = torch.quantization.quantize_dynamic(
+        model_fp32, {torch.nn.Linear}, dtype=torch.qint8
     )
-    folder_name = "audio-chunks"
-    # create a directory to store the audio chunks
-    if not os.path.isdir(folder_name):
-        os.mkdir(folder_name)
-    whole_text = ""
-    # process each chunk 
-    for i, audio_chunk in enumerate(chunks, start=1):
-        # export audio chunk and save it in
-        # the `folder_name` directory.
-        chunk_filename = os.path.join(folder_name, f"chunk{i}.wav")
-        audio_chunk.export(chunk_filename, format="wav")
-        # recognize the chunk
-        try:
-            text = transcribe_audio(chunk_filename)
-        except sr.UnknownValueError as e:
-            print("Error:", str(e))
-        else:
-            text = f"{text.capitalize()}. "
-            print(chunk_filename, ":", text)
-            whole_text += text
-    # return the text for all chunks detected
-    return whole_text
+
+    print_size_of_model(model_fp32)
+    print_size_of_model(quantized_model)
+
+    # save/load using state dict
+    path = 'qwhisper.pth'
+    torch.save(quantized_model.state_dict(), path)
+
+    test_path = audio_path
+    audio = whisper.load_audio(test_path)
+    audio = whisper.pad_or_trim(audio)
+
+    mel   = whisper.log_mel_spectrogram(audio).to(model_fp32.device)
+    options = whisper.DecodingOptions()
+
+    # _, probs = model_fp32.detect_language(mel)
+    # D_language = max(probs, key=probs.get)
+    # print(D_language)
+
+    # quantized
+    _, probs = quantized_model.detect_language(mel)
+    D_language = max(probs, key=probs.get)
+    # print(D_language)
 
 
-def process (video_path):  
-    # video_path = "speech.mp4"  # Replace with your video file path
-    audio = extract_audio(video_path)
+    # ## Evaluate the original FP32 WHISPER model
+    # time_model_evaluation(model_fp32, mel, options)
 
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
-        temp_audio_file_path = temp_audio_file.name
-        audio.write_audiofile(temp_audio_file_path)
-
-    Full_text = get_large_audio_transcription_on_silence(temp_audio_file_path)
+    # Evaluate the INT8 WHISPER model after the dynamic quantization
+    Full_text= time_model_evaluation(quantized_model, mel, options,test_path,D_language )
+    print(Full_text)
 
     return Full_text
-    
 
 
-    
 
-# process("backend/media/speech.mp4")
+
+# process("speech.mp4")

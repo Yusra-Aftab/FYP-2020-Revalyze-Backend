@@ -197,6 +197,8 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
+API_KEY = "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"
+
 
 
 

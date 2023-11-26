@@ -3,7 +3,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from authentication.settings import MEDIA_ROOT
 from accounts.transcription import process
+from accounts.summarization import summarize
 from accounts.models import Video
+from accounts.models import Summary
 import os
 
 @csrf_exempt
@@ -35,6 +37,13 @@ def upload_video(request):
         video_instance = Video(name=name, transcript=transcript)
         video_instance.save()
 
+        
+        summary = summarize(transcript)
+        print(summary)
+
+
+        summary_instance = Summary(name=name, summary=summary)
+        summary_instance.save()
 
         # Return a response, for example:
         return JsonResponse({'message': 'Video uploaded and transcription started.'})
@@ -54,3 +63,19 @@ def get_transcript(request, video_id):
         return JsonResponse({'name': video.name, 'transcript': video.transcript})
     except Video.DoesNotExist:
         return JsonResponse({'message': 'Video not found'}, status=404)
+    
+
+
+def get_summary_names(request):
+    # Retrieve a list of Summary names from the database
+    summary_names = Summary.objects.values('id', 'name')
+    return JsonResponse({'summaries': list(summary_names)})
+
+
+
+def get_summary(request, summary_id):
+    try:
+        summary = Summary.objects.get(id=summary_id)
+        return JsonResponse({'name': summary.name, 'summary': summary.summary})
+    except Summary.DoesNotExist:
+        return JsonResponse({'message': 'Summary not found'}, status=404)
