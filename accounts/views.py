@@ -4,8 +4,11 @@ from django.views.decorators.csrf import csrf_exempt
 from authentication.settings import MEDIA_ROOT
 from accounts.transcription import process
 from accounts.summarization import summarize
+from accounts.analysis import Moderate
 from accounts.models import Video
 from accounts.models import Summary
+from accounts.models import Analysis
+from accounts.models import Analysis_Report
 import os
 
 @csrf_exempt
@@ -17,33 +20,37 @@ def upload_video(request):
         print(name)
 
 
-        # Make sure the name is not empty
-        if not name:
-            return JsonResponse({'message': 'Name is required.'}, status=400)
+        # # Make sure the name is not empty
+        # if not name:
+        #     return JsonResponse({'message': 'Name is required.'}, status=400)
 
-        video_path = os.path.join(MEDIA_ROOT, video_file.name)
-        with open(video_path, 'wb') as destination:
-            for chunk in video_file.chunks():
-                destination.write(chunk)
+        # video_path = os.path.join(MEDIA_ROOT, video_file.name)
+        # with open(video_path, 'wb') as destination:
+        #     for chunk in video_file.chunks():
+        #         destination.write(chunk)
 
-        # Now, you have the video file saved in the "media" folder
-        # Pass the video_path and name to the process function in transcription.py
-        transcript = process(video_path)
-        print("Complete_Text")
-        print(transcript)
+        # # Now, you have the video file saved in the "media" folder
+        # # Pass the video_path and name to the process function in transcription.py
+        # transcript = process(video_path)
+        # print("Complete_Text")
+        # print(transcript)
 
 
-        # Create and save an instance of the Video model
-        video_instance = Video(name=name, transcript=transcript)
-        video_instance.save()
+        # # Create and save an instance of the Video model
+        # video_instance = Video(name=name, transcript=transcript)
+        # video_instance.save()
 
         
-        summary = summarize(transcript)
-        print(summary)
+        # summary = summarize(transcript)
+        # print(summary)
 
 
-        summary_instance = Summary(name=name, summary=summary)
-        summary_instance.save()
+        # summary_instance = Summary(name=name, summary=summary)
+        # summary_instance.save()
+
+        prompt= " He is a terrorist, he should be killed."
+        Moderate(name, prompt)
+
 
         # Return a response, for example:
         return JsonResponse({'message': 'Video uploaded and transcription started.'})
@@ -72,10 +79,32 @@ def get_summary_names(request):
     return JsonResponse({'summaries': list(summary_names)})
 
 
-
 def get_summary(request, summary_id):
     try:
         summary = Summary.objects.get(id=summary_id)
         return JsonResponse({'name': summary.name, 'summary': summary.summary})
     except Summary.DoesNotExist:
         return JsonResponse({'message': 'Summary not found'}, status=404)
+
+
+def get_analysis_names(request):
+    analysis_data = Analysis.objects.values('id', 'name', 'flag')
+    return JsonResponse({'analyses': list(analysis_data)})
+
+def get_analysis(request, analysis_id):
+    try:
+        analysis = Analysis.objects.get(id=analysis_id)
+        return JsonResponse({'name': analysis.name, 'categories': analysis.categories, 'flagged': analysis.flagged})
+    except Analysis.DoesNotExist:
+        return JsonResponse({'message': 'Analysis not found'}, status=404)
+
+def get_report_names(request):
+    report_names = Analysis_Report.objects.values('id', 'name')
+    return JsonResponse({'reports': list(report_names)})
+
+def get_report(request, report_name):
+    try:
+        report = Analysis_Report.objects.get(name=report_name)
+        return JsonResponse({'name': report.name, 'report': report.report})
+    except Analysis_Report.DoesNotExist:
+        return JsonResponse({'message': 'Analysis Report not found'}, status=404)

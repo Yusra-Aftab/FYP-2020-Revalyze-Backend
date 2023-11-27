@@ -58,3 +58,15 @@ class Summary(models.Model):
     name = models.CharField(max_length=255)
     summary = models.TextField()
 
+
+
+class Analysis(models.Model):
+    name = models.CharField(max_length=255)
+    flag = models.BooleanField()
+    categories = models.JSONField()
+    flagged = models.JSONField()
+
+
+class Analysis_Report(models.Model):
+    name = models.CharField(max_length=255)
+    report = models.TextField()
